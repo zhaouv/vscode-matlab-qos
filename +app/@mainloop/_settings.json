@@ -1,0 +1,5 @@
+{
+    "qos.scriptLogPath":"<path>",
+    "qos.currentScriptFile":"<path to .m>",
+    "qos.statusFile":"<path to .json>"
+}

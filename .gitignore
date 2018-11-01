@@ -2,3 +2,13 @@ out
 node_modules
 .vscode-test/
 *.vsix
+
+
+*.asv
++app/@mainloop/config.json
++app/@mainloop/settings.json
++app/LP.m
+running.m
+status.json
+*.mlog
+*.lnk

@@ -1,7 +1,7 @@
 {
     "name": "vscode-matlab-qos",
     "displayName": "vscode-matlab-qos",
-    "description": "log when running scripts",
+    "description": "让vscode支持在qos环境下运行代码",
     "version": "0.0.1",
     "publisher": "zhaouv",
     "engines": {
@@ -11,14 +11,69 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:extension.sayHello"
+        "onLanguage:matlab"
     ],
     "main": "./out/extension",
     "contributes": {
-        "commands": [{
-            "command": "extension.sayHello",
-            "title": "Hello World"
-        }]
+        "configuration": {
+            "type": "object",
+            "title": "Qos Vscode Configuration",
+            "properties": {
+              "qos.scriptLogPath": {
+                "type": "string",
+                "default": "",
+                "description": "qos脚本日志的存放路径"
+              },
+              "qos.currentScriptFile": {
+                "type": "string",
+                "default": "",
+                "description": "qos的临时运行脚本 .m"
+              },
+              "qos.statusFile": {
+                "type": "string",
+                "default": "",
+                "description": "qos运行状态文件 .json"
+              }
+            }
+          },
+        "commands": [
+            {
+                "command": "extension.runSelection",
+                "title": "运行选中区域 Run Selection"
+            },
+            {
+                "command": "extension.runCurrentSection",
+                "title": "运行节 Run Current Section"
+            },
+            {
+                "command": "extension.runFile",
+                "title": "运行文件 Run File"
+            },
+            {
+                "command": "extension.resetStatus",
+                "title": "重置状态文件 Reset Status File"
+            }
+        ],
+        "keybindings": [
+            {
+                "command": "extension.runSelection",
+                "key": "f9",
+                "mac": "f9",
+                "when": "editorTextFocus"
+            },
+            {
+                "command": "extension.runCurrentSection",
+                "key": "ctrl+enter",
+                "mac": "cmd+enter",
+                "when": "editorTextFocus"
+            },
+            {
+                "command": "extension.runFile",
+                "key": "f5",
+                "mac": "f5",
+                "when": "editorTextFocus"
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
@@ -30,6 +85,7 @@
     "devDependencies": {
         "typescript": "^2.6.1",
         "vscode": "^1.1.6",
+        "iconv-lite":"^0.4.17",
         "@types/node": "^7.0.43",
         "@types/mocha": "^2.2.42"
     }
