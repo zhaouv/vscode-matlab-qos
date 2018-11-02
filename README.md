@@ -30,17 +30,28 @@ win7^ & matlab2016b^
 
 This extension contributes the following settings:
 
-* `qos.scriptLogPath`: enable/disable this extension
-* `qos.currentScriptFile`: set to `blah` to do something
-* `qos.statusFile`: set to `blah` to do something
+* `qos.scriptLogPath`: Path to put log file
+* `qos.currentScriptFile`: matlab will run this file when vscode send messege
+* `qos.statusFile`: vscode and matlab will check and write this file to communicate
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+wrong highlight for `%%\S.*` when use
+```json
+"editor.tokenColorCustomizations":{
+    "textMateRules": [
+        {
+            "scope":"comment.line.double-percentage.matlab",
+            "settings": {
+                "fontStyle": "bold",
+                "foreground": "#40b903"
+            }
+        }
+    ]
+}
+```
 
 ## Release Notes
-
-Users appreciate release notes as you update your extension.
 
 ### 0.0.1
 
