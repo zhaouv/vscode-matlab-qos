@@ -1,5 +1,16 @@
 {
     "qos.scriptLogPath":"<path>",
     "qos.currentScriptFile":"<path to .m>",
-    "qos.statusFile":"<path to .json>"
+    "qos.statusFile":"<path to .json>",
+    "editor.tokenColorCustomizations":{
+        "textMateRules": [
+            {
+                "scope":"comment.line.double-percentage.matlab",
+                "settings": {
+                    "fontStyle": "bold",
+                    "foreground": "#40b903"
+                }
+            }
+        ]
+    }
 }

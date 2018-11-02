@@ -6,8 +6,11 @@ add `+app`'s parent root into matlab PATH
 
 create `+app/LP.m`
 ```matlab
-function LP()
-    app.mainloop.GetInstance('configFile','<path to your .vscode/settings.json>');
+function LP(varargin)
+    if ~nargin
+        varargin={'configFile','<full path>\.vscode\settings.json'};
+    end
+    app.mainloop.GetInstance(varargin{:});
 end
 ```
 

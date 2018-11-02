@@ -52,10 +52,12 @@ classdef (Sealed = true)mainloop < handle
                 obj.writeStatus();
                 clear(obj.config.('qos_currentScriptFile'));
                 try
+                    addpath('.');
                     obj.run(obj.config.('qos_currentScriptFile'));
                 catch exception
-                    warning(exception.getReport)
                     fwrite(2,[exception.getReport, sprintf('\n') ])
+                    warning(exception.getReport)
+                    % exception.getReport
                     % rethrow(exception)
                 end
                 obj.status.running=0;

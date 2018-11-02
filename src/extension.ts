@@ -25,7 +25,14 @@ export function activate(context: vscode.ExtensionContext) {
         let text =''
         if (selection.isEmpty) {
             let line = selection.active.line;
+            // b=lines.map(v=>/^.*\.\.\.\s*(%.*)?$/.test(v))
             text = lines[line]
+            for(let ii=line-1;endWithContinueLine(lines[ii]) && ii>=0;ii--){
+                text=lines[ii]+'\r\n'+text
+            }
+            for(let ii=line;endWithContinueLine(lines[ii]) && ii<lines.length-1;ii++){
+                text=text+'\r\n'+lines[ii+1]
+            }
         } else {
             text = editor.document.getText(selection);
         }
@@ -95,7 +102,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         let datestr = new Date().toLocaleString()
         writeCurrentScript("run('"+filename+"')",filename,datestr)
-        appendLog("run('"+filename+"') % [full file]",filename,datestr)
+        appendLog("clear('"+filename+"')\r\nrun('"+filename+"') % [full file]",filename,datestr)
     });
 
     let disposable4 = vscode.commands.registerCommand('extension.resetStatus', () => {
@@ -112,6 +119,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 // this method is called when your extension is deactivated
 export function deactivate() {
+}
+function endWithContinueLine(line: string){
+    return /^.*\.\.\.\s*(%.*)?$/.test(line)
 }
 
 function writeGBK(filename: string,str: string){
@@ -151,7 +161,7 @@ function appendLog(str: string,filename: string,datestr: string){
     let text=[
         '%% DATE: '+datestr,
         '% FILE: '+filename,
-        '% CONTENT:\r\n'+str
+        str
     ].join('\r\n')
     let oldstr=''
     let logname=config['scriptLogPath']+'\\'+datestr.slice(0,10)+'.mlog'
