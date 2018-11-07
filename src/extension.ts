@@ -14,37 +14,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     let disposable1 = vscode.commands.registerCommand('extension.runSelection', () => {
         // vscode.window.showInformationMessage('Hello World!');
+        runSelection(false);
+    });
 
-        let editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            return; // No open text editor
-        }
-        let fullText=editor.document.getText()
-        let lines=fullText.split(/\r?\n/);
-        let selection = editor.selection;
-        let text =''
-        if (selection.isEmpty) {
-            let line = selection.active.line;
-            // b=lines.map(v=>/^.*\.\.\.\s*(%.*)?$/.test(v))
-            text = lines[line]
-            for(let ii=line-1;endWithContinueLine(lines[ii]) && ii>=0;ii--){
-                text=lines[ii]+'\r\n'+text
-            }
-            for(let ii=line;endWithContinueLine(lines[ii]) && ii<lines.length-1;ii++){
-                text=text+'\r\n'+lines[ii+1]
-            }
-        } else {
-            text = editor.document.getText(selection);
-        }
-
-        let filename=editor.document.fileName
-
-        console.log(text)
-        console.log(filename)
-
-        let datestr = new Date().toLocaleString()
-        writeCurrentScript(text,filename,datestr)
-        appendLog(text,filename,datestr)
+    let disposable1_1 = vscode.commands.registerCommand('extension.runSelectionAndDelete', () => {
+        // vscode.window.showInformationMessage('Hello World!');
+        runSelection(true);
     });
 
     let disposable2 = vscode.commands.registerCommand('extension.runCurrentSection', () => {
@@ -101,8 +76,8 @@ export function activate(context: vscode.ExtensionContext) {
         console.log(filename)
 
         let datestr = new Date().toLocaleString()
-        writeCurrentScript("run('"+filename+"')",filename,datestr)
-        appendLog("clear('"+filename+"')\r\nrun('"+filename+"') % [full file]",filename,datestr)
+        writeCurrentScript("clear('"+filename+"')\r\nrun('"+filename+"')",filename,datestr)
+        appendLog("run('"+filename+"') % [full file]",filename,datestr)
     });
 
     let disposable4 = vscode.commands.registerCommand('extension.resetStatus', () => {
@@ -112,6 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(disposable1);
+    context.subscriptions.push(disposable1_1);
     context.subscriptions.push(disposable2);
     context.subscriptions.push(disposable3);
     context.subscriptions.push(disposable4);
@@ -120,8 +96,58 @@ export function activate(context: vscode.ExtensionContext) {
 // this method is called when your extension is deactivated
 export function deactivate() {
 }
-function endWithContinueLine(line: string){
-    return /^.*\.\.\.\s*(%.*)?$/.test(line)
+
+function runSelection(deleteSelect: boolean){
+    let editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        return; // No open text editor
+    }
+    let fullText=editor.document.getText()
+    let lines=fullText.split(/\r?\n/);
+    let selection = editor.selection;
+    let text ='';
+    let deletecb=()=>{};
+    if (selection.isEmpty) {
+        let line = selection.active.line;
+        let pattern=/^.*\.\.\.\s*(%.*)?$/;
+        let startLine=line-1;
+        for(;startLine>=0;startLine--){
+            if(!pattern.test(lines[startLine]))break;
+        }
+        startLine++;
+        let endLine=line;
+        for(;endLine<lines.length;endLine++){
+            if(!pattern.test(lines[endLine]))break;
+        }
+        endLine++;
+
+        text = lines.slice(startLine,endLine).join('\r\n')
+        deletecb=()=>{
+            editor.edit(edit => {
+                edit.replace(new vscode.Range(
+                    new vscode.Position(startLine,0),
+                    new vscode.Position(endLine,0)
+                ), '');
+            })
+        }
+    } else {
+        text = editor.document.getText(selection);
+        deletecb=()=>{
+            editor.edit(edit => {
+                edit.replace(selection, '');
+            })
+        }
+    }
+
+    let filename=editor.document.fileName
+
+    console.log(text)
+    console.log(filename)
+
+    let datestr = new Date().toLocaleString()
+    writeCurrentScript(text,filename,datestr)
+    appendLog(text,filename,datestr)
+    if(deleteSelect)deletecb();
 }
 
 function writeGBK(filename: string,str: string){
@@ -157,14 +183,14 @@ function initCheck(){
 
 function appendLog(str: string,filename: string,datestr: string){
     // let datestr = new Date().toLocaleString()
-    // "2018-10-31 20:43:48"
+    // "2018-1-4 20:43:48"
     let text=[
         '%% DATE: '+datestr,
-        '% FILE: '+filename,
+        '%% FILE: '+filename,
         str
     ].join('\r\n')
     let oldstr=''
-    let logname=config['scriptLogPath']+'\\'+datestr.slice(0,10)+'.mlog'
+    let logname=config['scriptLogPath']+'\\'+datestr.split(' ')[0].replace(/-\d\b/g,v=>'-0'+v[1])+'.mlog'
     try {
         oldstr=readGBK(logname)+'\r\n'
     } catch (error) {
@@ -175,11 +201,6 @@ function appendLog(str: string,filename: string,datestr: string){
 }
 
 function writeCurrentScript(str: string,filename: string,datestr: string){
-    let text=[
-        '%% DATE: '+datestr,
-        '% FILE: '+filename,
-        str
-    ].join('\r\n')
     let statusstr=''
     let statusFile=config['statusFile']
     try {
@@ -196,10 +217,20 @@ function writeCurrentScript(str: string,filename: string,datestr: string){
         vscode.window.showErrorMessage('当前有未运行完成的脚本')
         throw Error('当前有未运行完成的脚本')
     }
+    status["import"]=status["import"]||''
     status['date']=datestr
     status['file']=filename
     status['running']=1
     status['todo']=1
+    let text=[
+        '%% DATE: '+datestr,
+        '%% FILE: '+filename,
+        status["import"]+str
+    ].join('\r\n')
+    let lines=str.split(/\r?\n/);
+    lines.forEach(v=>{
+        if(/^\s*import\s.*$/.test(v))status["import"]+=v+'\r\n';
+    })
     writeGBK(statusFile,JSON.stringify(status))
     writeGBK(config['currentScriptFile'],text)
     vscode.window.showInformationMessage('脚本执行...');

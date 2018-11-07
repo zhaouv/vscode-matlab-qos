@@ -22,6 +22,37 @@ Run `+app.LP` in matlab console
 
 When you select nothing, `F9` will run those line instead of do nothing which is the default behavier in Matlab editor.
 
+`F8` run selection or selected line and then delete those.
+
+highlight when using V and [matlab.tmLanguage](http://172.16.20.52/tmp/matlab.tmLanguage)
+```json
+"editor.tokenColorCustomizations":{
+    "textMateRules": [
+        {
+            "scope":"comment.line.double-percentage.matlab",
+            "settings": {
+                "fontStyle": "bold",
+                "foreground": "#40b903"
+            }
+        },
+        {
+            "scope":"meta.comment.error.matlab",
+            "settings": {
+                "foreground": "#b90303"
+            }
+        },
+        {
+            "scope":"meta.comment.info.matlab",
+            "settings": {
+                "foreground": "#039eb9"
+            }
+        }
+    ]
+}
+```
+
+scripts log & error log & workspace log
+
 ## Requirements
 
 win7^ & matlab2016b^
@@ -34,30 +65,4 @@ This extension contributes the following settings:
 * `qos.currentScriptFile`: matlab will run this file when vscode send messege
 * `qos.statusFile`: vscode and matlab will check and write this file to communicate
 
-## Known Issues
-
-wrong highlight for `%%\S.*` when use
-```json
-"editor.tokenColorCustomizations":{
-    "textMateRules": [
-        {
-            "scope":"comment.line.double-percentage.matlab",
-            "settings": {
-                "fontStyle": "bold",
-                "foreground": "#40b903"
-            }
-        }
-    ]
-}
-```
-
-## Release Notes
-
-### 0.0.1
-
-Initial release
-
-+ `F5` `F9` `Ctrl+Enter` 
-+ script log
-+ reset status file
 

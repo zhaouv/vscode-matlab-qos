@@ -10,6 +10,18 @@
                     "fontStyle": "bold",
                     "foreground": "#40b903"
                 }
+            },
+            {
+                "scope":"meta.comment.error.matlab",
+                "settings": {
+                    "foreground": "#b90303"
+                }
+            },
+            {
+                "scope":"meta.comment.info.matlab",
+                "settings": {
+                    "foreground": "#039eb9"
+                }
             }
         ]
     }

@@ -3,7 +3,7 @@ node_modules
 .vscode-test/
 *.vsix
 
-
+matlabtest
 *.asv
 +app/@mainloop/config.json
 +app/@mainloop/settings.json

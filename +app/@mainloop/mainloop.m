@@ -55,19 +55,81 @@ classdef (Sealed = true)mainloop < handle
                     addpath('.');
                     obj.run(obj.config.('qos_currentScriptFile'));
                 catch exception
-                    fwrite(2,[exception.getReport, sprintf('\n') ])
-                    warning(exception.getReport)
+                    errorReport=exception.getReport;
+                    lines=string(errorReport).split(sprintf('\n'));
+                    si=1;
+                    for si=1:size(lines,1)
+                        if ~isempty(regexp(lines(si),'app.mainloop/run'))
+                            break
+                        end
+                    end
+                    errorReport=char(join(lines(1:si-1),sprintf('\n')));
+                    fprintf(2,'%s',errorReport);
+                    %warning(errorReport)
+                    obj.appendLog([sprintf('\n%% [ERROR]\n%%{\n') errorReport sprintf('\n%%}')]);
                     % exception.getReport
                     % rethrow(exception)
                 end
                 obj.status.running=0;
                 obj.writeStatus();
             end
+            obj.checkUpWorkspace();
             obj.cleanInRunScriptInTimer=0;
             function cleanFcn(obj)
                 if obj.cleanInRunScriptInTimer
                     obj.timerClearInfo='ctrl+c';
+                    obj.appendLog(sprintf('\n%% [Break by Ctrl + C]'));
+                    obj.checkUpWorkspace();
                     stop(obj.looptimer);
+                end
+            end
+        end
+        function checkUpWorkspace(obj)
+            persistent oldmap;
+            if isempty(oldmap)
+                oldmap=struct();
+            end
+            list={};
+            newmap=getWorkspaceInfo();
+            for name = fields(newmap)'
+                name=name{1};
+                if ~isfield(oldmap,name) || ~strcmp(newmap.(name),oldmap.(name))
+                    list{end+1}=name;
+                end
+            end
+            oldmap=newmap;
+            if ~isempty(list)
+                output={'' '% [workspace]' '%{'};
+                for name = list
+                    name=name{1};
+                    output{end+1}=[name '= ' newmap.(name)];
+                end
+                output{end+1}='%}';
+                obj.appendLog(join(output,sprintf('\n')));
+            end
+            function idmap= getWorkspaceInfo()
+                idlist = evalin('base','whos');
+                idlist=idlist(~ismember({idlist.name},{'ans'}));
+                idmap=struct();
+                for s = idlist'
+                    str=[];
+                    try
+                        if ~ismember(s.class,{'char','string','struct','cell','double','logical','function_handle'})
+                            str=[];
+                        elseif strcmp(s.class,'function_handle')
+                            str=evalin('base',['func2str(' s.name ')']);
+                        else
+                            str=evalin('base',['jsonencode(' s.name ')']);
+                        end
+                        if size(str,2) > 1000
+                            str=[];
+                        end
+                    catch
+                    end
+                    if isempty(str)
+                        str=jsonencode(struct('class',s.class,'size',s.size,'bytes',s.bytes));
+                    end
+                    idmap.(s.name)=str;
                 end
             end
         end
@@ -191,6 +253,13 @@ classdef (Sealed = true)mainloop < handle
         function writeStatus(obj)
             fid=fopen(obj.config.('qos_statusFile'),'w');
             fwrite(fid,jsonencode(obj.status));
+            fclose(fid);
+        end
+        % 追加到日志
+        function appendLog(obj,charArray)
+            filename =[obj.config.('qos_scriptLogPath') '\' datestr(now,'yyyy-mm-dd') '.mlog'];
+            fid=fopen(filename,'a+');
+            fprintf(fid,'%s',charArray);
             fclose(fid);
         end
     end
