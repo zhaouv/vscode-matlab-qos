@@ -67,8 +67,8 @@
             },
             {
                 "command": "extension.runSelectionAndDelete",
-                "key": "f8",
-                "mac": "f8",
+                "key": "f7",
+                "mac": "f7",
                 "when": "editorTextFocus"
             },
             {

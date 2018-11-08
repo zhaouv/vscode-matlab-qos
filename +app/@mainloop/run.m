@@ -1,4 +1,4 @@
-function run(obj,scriptname)
+function run(scriptname)
 %RUN Run script.
 %   Typically, you just type the name of a script at the prompt to
 %   execute it. This works when the script is on your path.  Use CD
@@ -33,6 +33,12 @@ if ispc
 end
 cleaner = onCleanup(@() ([]));
 [fileDir,script,ext] = fileparts(scriptname);
+[si,ei]=regexp(fileDir,'(?:\\\+[^+\\]*)*$');
+if ~isempty(fileDir(si:ei))
+    strs=string(fileDir(si:ei)).split('\+');
+    fileDir=fileDir(1:si-1);
+    script=char(join([strs(2:end) ; script],'.'));
+end
 startDir = pwd;
 
 % If the input had a path, CD to that path if it exists
@@ -74,6 +80,10 @@ if isempty(pathscript)
 end
 
 [runDir,~,rext] = fileparts(pathscript{id});
+[si,ei]=regexp(runDir,'(?:\\\+[^+\\]*)*$');
+if ~isempty(runDir(si:ei))
+    runDir=runDir(1:si-1);
+end
 
 % If which -all (minus variables and possibly private paths) doesn't find a 
 % script in the same location as the requested path, calling evalin will 

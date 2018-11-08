@@ -9,6 +9,7 @@ matlabtest
 +app/@mainloop/settings.json
 +app/LP.m
 running.m
+scriptQueue.m
 status.json
 *.mlog
 *.lnk

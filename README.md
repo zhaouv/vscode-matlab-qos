@@ -18,11 +18,13 @@ Run `+app.LP` in matlab console
 
 ## Features
 
+script queue
+
 `F5` `F9` `Ctrl+Enter`
 
 When you select nothing, `F9` will run those line instead of do nothing which is the default behavier in Matlab editor.
 
-`F8` run selection or selected line and then delete those.
+`F7` run selection or selected line and then delete those.
 
 highlight when using V and [matlab.tmLanguage](http://172.16.20.52/tmp/matlab.tmLanguage)
 ```json

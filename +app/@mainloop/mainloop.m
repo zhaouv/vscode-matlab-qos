@@ -34,32 +34,34 @@ classdef (Sealed = true)mainloop < handle
         cleanInRunScriptInTimer
         timerClearInfo='clear all'
     end
-    methods
+    properties (SetAccess = private, GetAccess = private)
+        % 常量
+        spliter='%% %%%%%%%%%spliter%%%%%%%%%a4eugb2sbb6cas4rg8s5vt9o6ng%%%%%'
+    end
+    methods (Static)
         % 用于在静态工作区运行脚本
-        run(obj,scriptname)
+        run(scriptname)
+    end
+    methods
         % 每一步尝试运行脚本的函数
         function runScriptInTimer(obj)
             obj.cleanInRunScriptInTimer=1;
             cleanupObj = onCleanup(@()cleanFcn(obj));
-            try
-                obj.readStatus();
-            catch
-                pause(0.1);
-                obj.readStatus();
-            end
+            obj.readStatus();
             if obj.status.todo
-                obj.status.todo=0;
+                obj.status.todo=obj.status.todo-1;
+                obj.status.running=1;
                 obj.writeStatus();
                 clear(obj.config.('qos_currentScriptFile'));
                 try
                     addpath('.');
-                    obj.run(obj.config.('qos_currentScriptFile'));
+                    app.mainloop.run(obj.config.('qos_currentScriptFile'));
                 catch exception
                     errorReport=exception.getReport;
                     lines=string(errorReport).split(sprintf('\n'));
                     si=1;
                     for si=1:size(lines,1)
-                        if ~isempty(regexp(lines(si),'app.mainloop/run'))
+                        if ~isempty(regexp(lines(si),'app\.mainloop\.run', 'once'))
                             break
                         end
                     end
@@ -70,19 +72,50 @@ classdef (Sealed = true)mainloop < handle
                     % exception.getReport
                     % rethrow(exception)
                 end
-                obj.status.running=0;
-                obj.writeStatus();
+                % 正常停止或发生错误停止
+                obj.runScriptInTimerEnd();
             end
+            % 实时追踪工作区变化
             obj.checkUpWorkspace();
             obj.cleanInRunScriptInTimer=0;
             function cleanFcn(obj)
                 if obj.cleanInRunScriptInTimer
                     obj.timerClearInfo='ctrl+c';
-                    obj.appendLog(sprintf('\n%% [Break by Ctrl + C]'));
-                    obj.checkUpWorkspace();
                     stop(obj.looptimer);
                 end
             end
+        end
+        function runScriptInTimerEnd(obj)
+            obj.readStatus();
+            obj.status.running=0;
+            obj.checkUpWorkspace();
+            if obj.status.todo
+                % 读队列文本
+                try
+                    scriptQueueText=fileread(obj.config.('scriptQueue'));
+                catch
+                    pause(0.1)
+                    scriptQueueText=fileread(obj.config.('scriptQueue'));
+                end
+                scriptQueue=string(scriptQueueText).split(obj.spliter);
+                % 更新队列数
+                obj.status.todo=numel(scriptQueue);
+                % 队首写到当前文件
+                fid=fopen(obj.config.('qos_currentScriptFile'),'w');
+                fwrite(fid,scriptQueue(1));
+                fclose(fid);
+                obj.appendLog(sprintf('\n%% [queue.shift %d]',numel(scriptQueue)));
+                % 更新队列文本
+                if numel(scriptQueue)>1
+                    scriptQueueText=join(scriptQueue(2:end),obj.spliter);
+                else
+                    scriptQueueText='';
+                end
+                fid=fopen(obj.config.('scriptQueue'),'w');
+                fwrite(fid,scriptQueueText);
+                fclose(fid);
+            end
+            obj.writeStatus();
         end
         function checkUpWorkspace(obj)
             persistent oldmap;
@@ -152,8 +185,9 @@ classdef (Sealed = true)mainloop < handle
                     obj.delete();
                 elseif strcmp(obj.timerClearInfo,'ctrl+c')
                     obj.timerClearInfo='clear all';
-                    obj.status.running=0;
-                    obj.writeStatus();
+                    obj.appendLog(sprintf('\n%% [Break by Ctrl + C]'));
+                    % 被Ctrl+C打断停止
+                    obj.runScriptInTimerEnd();
                     obj.initTimer();
                 end
             end
@@ -185,6 +219,9 @@ classdef (Sealed = true)mainloop < handle
                 fid=fopen(obj.config.('qos_statusFile'),'w');
                 statustext='{"running":0,"qos":0,"todo":0}';
                 fprintf(fid,statustext);
+                fid=fopen(obj.config.('scriptQueue'),'w');
+                fwrite(fid,'');
+                fclose(fid);
             end
         end
     end
@@ -223,11 +260,17 @@ classdef (Sealed = true)mainloop < handle
             % 取状态
             obj.config=jsondecode(fileread(obj.configFile));
             if ~exist(obj.config.('qos_statusFile'),'file')
-                statustext=['{"running":0,"qos":1,"id":"',obj.id,'","todo":0}'];
+                statustext='{"running":0,"qos":0,"todo":0}';
             else
                 statustext=fileread(obj.config.('qos_statusFile'));
             end
             obj.status=jsondecode(statustext);
+            obj.config.('scriptQueue')=[obj.config.('qos_scriptLogPath') '\scriptQueue.m'];
+            if ~exist(obj.config.('scriptQueue'),'file')
+                fid=fopen(obj.config.('scriptQueue'),'w');
+                fwrite(fid,'');
+                fclose(fid);
+            end
             % matlab进程的单例检查
             if ~isempty(app.mainloop.instance)
                error('已存在运行的实例,loop=app.mainloop.GetInstance获取');
@@ -246,8 +289,14 @@ classdef (Sealed = true)mainloop < handle
         end
         % 从文件更新运行状态
         function readStatus(obj)
-            statustext=fileread(obj.config.('qos_statusFile'));
-            obj.status=jsondecode(statustext);
+            try
+                statustext=fileread(obj.config.('qos_statusFile'));
+                obj.status=jsondecode(statustext);
+            catch
+                pause(0.1);
+                statustext=fileread(obj.config.('qos_statusFile'));
+                obj.status=jsondecode(statustext);
+            end
         end
         % 把运行状态更新到文件
         function writeStatus(obj)

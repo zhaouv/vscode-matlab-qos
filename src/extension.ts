@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as iconv from 'iconv-lite';
 
 let config = {}
+let globalStatus = {}
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -14,12 +15,16 @@ export function activate(context: vscode.ExtensionContext) {
 
     let disposable1 = vscode.commands.registerCommand('extension.runSelection', () => {
         // vscode.window.showInformationMessage('Hello World!');
-        runSelection(false);
+        let deleteSelect=false;
+        let enbaleQueue=true;
+        runSelection(deleteSelect,enbaleQueue);
     });
 
     let disposable1_1 = vscode.commands.registerCommand('extension.runSelectionAndDelete', () => {
         // vscode.window.showInformationMessage('Hello World!');
-        runSelection(true);
+        let deleteSelect=true;
+        let enbaleQueue=false;
+        runSelection(deleteSelect,enbaleQueue);
     });
 
     let disposable2 = vscode.commands.registerCommand('extension.runCurrentSection', () => {
@@ -55,7 +60,8 @@ export function activate(context: vscode.ExtensionContext) {
         console.log(filename)
 
         let datestr = new Date().toLocaleString()
-        writeCurrentScript(text,filename,datestr)
+        let enbaleQueue=true;
+        writeCurrentScript(text,filename,datestr,enbaleQueue)
         appendLog(text,filename,datestr)
     });
 
@@ -76,8 +82,9 @@ export function activate(context: vscode.ExtensionContext) {
         console.log(filename)
 
         let datestr = new Date().toLocaleString()
-        writeCurrentScript("clear('"+filename+"')\r\nrun('"+filename+"')",filename,datestr)
-        appendLog("run('"+filename+"') % [full file]",filename,datestr)
+        let enbaleQueue=false;
+        writeCurrentScript("clear('"+filename+"')\r\napp.mainloop.run('"+filename+"')",filename,datestr,enbaleQueue)
+        appendLog("app.mainloop.run('"+filename+"') % [full file]",filename,datestr)
     });
 
     let disposable4 = vscode.commands.registerCommand('extension.resetStatus', () => {
@@ -97,7 +104,7 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
 }
 
-function runSelection(deleteSelect: boolean){
+function runSelection(deleteSelect: boolean,enbaleQueue: boolean){
     let editor = vscode.window.activeTextEditor;
     if (!editor) {
         return; // No open text editor
@@ -145,7 +152,7 @@ function runSelection(deleteSelect: boolean){
     console.log(filename)
 
     let datestr = new Date().toLocaleString()
-    writeCurrentScript(text,filename,datestr)
+    writeCurrentScript(text,filename,datestr,enbaleQueue)
     appendLog(text,filename,datestr)
     if(deleteSelect)deletecb();
 }
@@ -169,6 +176,7 @@ function initCheck(){
     config['scriptLogPath']=vscode.workspace.getConfiguration('qos')['scriptLogPath']
     config['currentScriptFile']=vscode.workspace.getConfiguration('qos')['currentScriptFile']
     config['statusFile']=vscode.workspace.getConfiguration('qos')['statusFile']
+    config['scriptQueue']=config['scriptLogPath']+'\\scriptQueue.m'
     if(!config['scriptLogPath'] || !config['currentScriptFile'] || !config['statusFile']){
         vscode.window.showErrorMessage('文件/路径未设置');
         return false;
@@ -178,12 +186,17 @@ function initCheck(){
         vscode.window.showErrorMessage('路径不存在');
         return false;
     }
+    let existed2=fs.existsSync(config['scriptQueue'])
+    if(!existed2){
+        writeGBK(config['scriptQueue'],'');
+    }
     return true;
 }
 
 function appendLog(str: string,filename: string,datestr: string){
     // let datestr = new Date().toLocaleString()
     // "2018-1-4 20:43:48"
+    if(globalStatus['append'])str='% [queue.push]\r\n'+str;
     let text=[
         '%% DATE: '+datestr,
         '%% FILE: '+filename,
@@ -200,11 +213,12 @@ function appendLog(str: string,filename: string,datestr: string){
     console.log(text)
 }
 
-function writeCurrentScript(str: string,filename: string,datestr: string){
+const spliter = '%% %%%%%%%%%spliter%%%%%%%%%a4eugb2sbb6cas4rg8s5vt9o6ng%%%%%';
+
+function writeCurrentScript(str: string,filename: string,datestr: string,enbaleQueue: boolean){
     let statusstr=''
-    let statusFile=config['statusFile']
     try {
-        statusstr=readGBK(statusFile)
+        statusstr=readGBK(config['statusFile'])
     } catch (error) {
         statusstr='{"running":0,"qos":0,"todo":0}'
     }
@@ -213,26 +227,37 @@ function writeCurrentScript(str: string,filename: string,datestr: string){
         vscode.window.showErrorMessage('matlab环境未启动')
         throw Error('matlab环境未启动')
     }
-    if(status["running"]){
+    function writeToFile(targetfile: string,messege: string,append: boolean){
+        status["import"]=status["import"]||''
+        status['date']=datestr
+        status['file']=filename
+        status['todo']+=1
+        let dateprefix=append?spliter+'\r\n':'';
+        let text=[
+            dateprefix+'%% DATE: '+datestr,
+            '%% FILE: '+filename,
+            status["import"]+str
+        ].join('\r\n')
+        let lines=str.split(/\r?\n/);
+        lines.forEach(v=>{
+            if(/^\s*import\s.*$/.test(v))status["import"]+=v+'\r\n';
+        })
+        if(append){
+            text=readGBK(targetfile)+'\r\n'+text;
+        }
+        writeGBK(config['statusFile'],JSON.stringify(status))
+        writeGBK(targetfile,text)
+        vscode.window.showInformationMessage(messege);
+        console.log(text)
+    }
+    globalStatus['append']=false;
+    if((status["running"] || status["todo"])&& !enbaleQueue){
         vscode.window.showErrorMessage('当前有未运行完成的脚本')
         throw Error('当前有未运行完成的脚本')
+    } else if(status["running"] || status["todo"]){
+        globalStatus['append']=true;
+        writeToFile(config['scriptQueue'],'加入队列...',true)
+    } else {  // if(!(status["running"] || status["todo"])){
+        writeToFile(config['currentScriptFile'],'脚本执行...',false)
     }
-    status["import"]=status["import"]||''
-    status['date']=datestr
-    status['file']=filename
-    status['running']=1
-    status['todo']=1
-    let text=[
-        '%% DATE: '+datestr,
-        '%% FILE: '+filename,
-        status["import"]+str
-    ].join('\r\n')
-    let lines=str.split(/\r?\n/);
-    lines.forEach(v=>{
-        if(/^\s*import\s.*$/.test(v))status["import"]+=v+'\r\n';
-    })
-    writeGBK(statusFile,JSON.stringify(status))
-    writeGBK(config['currentScriptFile'],text)
-    vscode.window.showInformationMessage('脚本执行...');
-    console.log(text)
 }
